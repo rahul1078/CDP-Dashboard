@@ -4,56 +4,29 @@ Power BI dashboard analyzing CDP employee performance across daily, weekly, and 
 
 ## Problem
 
-Track and evaluate the performance of **CDP (College Development Program) employees** by monitoring their ability to generate and convert sales opportunities.
-
-The dashboard answers:
-
-* Who is generating the most opportunities?
-* How efficiently are opportunities converted to quotes and policies?
-* How does performance vary across daily, weekly, and monthly views?
+Evaluate **CDP employee performance** by tracking the full sales funnel:
+**Opportunities → Quotes → Policies**, across daily, weekly, and monthly views.
 
 ---
 
 ## Business Context
 
-* CDP employees are responsible for generating **insurance sales opportunities**
-* Opportunities can result in:
+CDP (College Development Program) employees generate insurance opportunities (New Business, Renewals, Rewrites).
+Stakeholders use this dashboard to monitor:
 
-  * Quotes
-  * Policies (final conversion)
-* This dashboard helps stakeholders **monitor productivity, conversion efficiency, and trends over time**
-
----
-
-## Dataset & Source
-
-* Data extracted using SQL (see `/sql` folder)
-* Source: Internal transactional systems (opportunities, quotes, policies, employee data)
-
-Key entities:
-
-* Opportunities
-* Quotes
-* Policies
-* Employees (CDP)
-* Dates
+* Productivity (volume)
+* Conversion efficiency
+* Time to conversion
 
 ---
 
 ## Data Model
 
-* Fact Tables:
+* **Grain:** One row per *Opportunity–LOB combination*
+* Fact: Opportunity funnel (opportunity → quote → policy)
+* Dimensions: Employee, Date, LOB, Opportunity Type
 
-  * Opportunities / Policies (aggregated)
-* Dimension Tables:
-
-  * Date
-  * CDP Employee
-  * Opportunity Type
-
-Model follows a **star schema approach** enabling time-based and employee-level analysis.
-
-(Refer to `/images` for semantic model)
+Model is **star-like**, optimized for time-series and employee-level analysis.
 
 ---
 
@@ -62,101 +35,80 @@ Model follows a **star schema approach** enabling time-based and employee-level 
 * Opportunities Created
 * Quotes Generated
 * Policies Converted
-* Conversion Rate (Opportunities → Policies)
-* Avg Days to Quote
-* Avg Days to Policy (Shell)
-
-Metrics are derived using SQL + DAX (including date differences and aggregations).
+* Conversion Rate
+* Days to Quote
+* Days to Policy (Shell)
 
 ---
 
 ## SQL & Data Engineering Highlights
 
-* Multi-table joins combining opportunities, quotes, policies, and employee data
-* Transformation logic to align data at a consistent grain (opportunity-level)
-* Date difference calculations to derive **time-to-quote** and **time-to-policy** metrics
-* Aggregations to support funnel analysis (Opportunities → Quotes → Policies)
-* Pre-processing in SQL to reduce load on Power BI and improve performance
+* **CTE-based pipeline**: `CDPEmp → CDPOpportunities → CDPQuotes → Final`
+* **Window Functions (core logic):**
 
-*(Refer to `/sql` folder for full queries)*
+  * `ROW_NUMBER()` to select:
+
+    * First valid quote per opportunity + LOB
+    * Closest policy (shell date) to opportunity
+* **Fuzzy matching logic:**
+
+  * Policy matched within ±10 days of opportunity creation
+  * Ensures realistic linking between opportunity → policy
+* **Data shaping:**
+
+  * Opportunity type normalization (New / Renewal / Rewrite)
+  * LOB alignment across systems
+* **Derived metrics:**
+
+  * `DATEDIFF()` for time-to-quote and time-to-policy
+  * Binary flags for quote/policy conversion
+
+→ SQL does **heavy lifting before Power BI**, reducing DAX complexity.
 
 ---
 
-## Dashboard Pages
+## Dashboard Views
 
-### 1. Daily View
-
-* Tracks performance at **daily granularity**
-* Helps identify short-term activity and anomalies
-
-### 2. Weekly View
-
-* Aggregated weekly performance
-* Useful for trend consistency and workload patterns
-
-### 3. Monthly View
-
-* High-level performance tracking
-* Supports management reporting
-
-### 4. CDP Summary
-
-* Trend analysis:
-
-  * Employee count
-  * Quotes over time
-  * Policies created
-
-### 5. Data Dictionary
-
-* Defines all business metrics and fields used in the dashboard
+* **Daily / Weekly / Monthly** → performance at multiple granularities
+* **CDP Summary** → trend + workforce overview
+* **Data Dictionary** → metric definitions
 
 ---
 
 ## Key Insights
 
-* Performance varies significantly across employees
-* Conversion rates highlight efficiency differences, not just volume
-* Time-to-conversion metrics expose operational delays
-* Monthly trends show growth and drop-off patterns in activity
+* Performance differences are driven more by **conversion efficiency** than volume
+* Time-to-conversion highlights operational bottlenecks
+* Funnel drop-offs vary significantly across employees
 
 ---
 
 ## Data Refresh
 
-* Data is refreshed **daily** via scheduled refresh in Power BI Service
-* Data latency: up to 24 hours
-* Dependent on upstream SQL data availability
+* Daily scheduled refresh via Power BI Service
+* ~24-hour data latency
+* Dependent on upstream SQL systems
 
 ---
 
 ## Tools Used
 
-* Power BI (data modeling, DAX, visualization)
-* SQL (data extraction, joins, transformations, date calculations)
+* Power BI (modeling, DAX, visualization)
+* SQL (joins, window functions, transformations)
 
 ---
 
 ## Project Structure
 
 * `/pbix` → Power BI file
-* `/sql` → SQL queries (data extraction + transformations)
-* `/images` → Dashboard screenshots + semantic model
-
----
-
-## How to Use
-
-1. Open `.pbix` file in Power BI Desktop
-2. Navigate between Daily, Weekly, and Monthly views
-3. Use filters to analyze employee-level performance
-4. Refer to Data Dictionary for metric definitions
+* `/sql` → SQL queries
+* `/images` → dashboard + model screenshots
 
 ---
 
 ## Limitations
 
-* Data latency (up to 24 hours)
-* Dependency on upstream data quality and availability
+* Dependent on upstream data quality
+* Matching logic (±10 days) may introduce minor approximation
 
 ---
